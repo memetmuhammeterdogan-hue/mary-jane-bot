@@ -21,39 +21,30 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Render portu için web sunucusu
+# Render Port Yapılandırması
 web_app = Flask(__name__)
 
 @web_app.route('/')
 def home():
-    return "Mary Jane Bot Aktif!"
+    return "Mary Jane Asistan Aktif!"
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
     web_app.run(host="0.0.0.0", port=port)
 
-# Karakter ve Kişilik Tanımları
+# Kişilik Tanımları
 MODLAR = {
     "default": (
-        "Sen Mary Jane adında zeki, yardımsever, cana yakın ve çok yönlü bir yapay zeka asistanısın."
-    ),
-    "ege_fitness": (
-        "Sen Ege Fitness'sın (Ege Cinel). Sürekli yüksek motivasyonlu, enerjik, fitness ve disiplin odaklı konuşursun. "
-        "'Aygır', 'basmaya devam', 'no excuse', 'kesintisiz disiplin', 'pes etmek yok' gibi tarz ve kalıplarını bolca kullanırsın. "
-        "Kullanıcıyı motive eder, spor ve hayat hedeflerinde gaza getirirsin."
-    ),
-    "elraenn": (
-        "Sen Elraenn (Tuğkan Gönültaş)'sın. Çok samimi, doğal, mahalle ağzı ve yayıncı jargonuyla konuşursun. "
-        "'Kardeşim benim', 'canını yerim', 'bak şimdi babuş', 'hakkaten mi lan' gibi ifadeleri sıkça kullanırsın. "
-        "Sıcakkanlı, hikaye anlatan, dert dinleyen bir abi/arkadaş tavrın vardır."
+        "Sen Mary Jane adında zeki, yardımsever, cana yakın ve proaktif bir kişisel yapay zeka asistanısın. "
+        "Kullanıcıya ismiyle hitap edebilirsin."
     ),
     "buse_aydin": (
         "Sen Psikolog Buse Aydın'sın. Kullanıcıya profesyonel, empatik, derin dinleme yapan, "
-        "yargılamayan ve psikolojik farkındalık kazandıran bir terapist diliyle yaklaş."
+        "yargılamayan ve psikolojik farkındalık kazandıran sakin bir terapist diliyle yaklaş."
     ),
     "kanka": (
-        "Sen kullanıcının en yakın çocukluk arkadaşısın (kanka modu). Çok samimi, doğal, "
-        "esprili, yeri geldiğinde kafa dağıtan ve dert dinleyen bir üslupla konuş."
+        "Sen kullanıcının en yakın çocukluk arkadaşısın (kanka modu). Çok samimi, esprili, "
+        "doğal, kafa dağıtan ve dert dinleyen bir üslupla konuş."
     ),
     "yazilimci": (
         "Sen kıdemli bir siber güvenlik uzmanı ve yazılım mimarısın. Kodları doğrudan, temiz, "
@@ -61,32 +52,30 @@ MODLAR = {
     )
 }
 
-# Mod Seçim Menüsü
+# Mod Menüsü Butonları
 def get_mod_keyboard():
     keyboard = [
-        [InlineKeyboardButton("💪 Ege Fitness", callback_data="mod_ege_fitness")],
-        [InlineKeyboardButton("🎮 Elraenn (Tuğkan Abi)", callback_data="mod_elraenn")],
-        [InlineKeyboardButton("🧠 Psikolog Buse Aydın", callback_data="mod_buse_aydin")],
-        [InlineKeyboardButton("☕ Samimi Arkadaş (Kanka)", callback_data="mod_kanka")],
-        [InlineKeyboardButton("💻 Siber Güvenlik / Yazılımcı", callback_data="mod_yazilimci")],
+        [InlineKeyboardButton("🧠 Psikolog Modu", callback_data="mod_buse_aydin")],
+        [InlineKeyboardButton("☕ Samimi Kanka Modu", callback_data="mod_kanka")],
+        [InlineKeyboardButton("💻 Siber Güvenlik / Kodlama", callback_data="mod_yazilimci")],
         [InlineKeyboardButton("✨ Varsayılan Mary Jane", callback_data="mod_default")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# /start komutu
+# /start Komutu
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["active_mod"] = "default"
     await update.message.reply_text(
-        "Merhaba! Ben Mary Jane.\n\n"
-        "Benimle nasıl konuşmak istersin? Aşağıdaki karakterlerden veya modlardan birini seçebilirsin:",
+        "Selam Muhammet! Ben Mary Jane, senin kişisel asistanın.\n\n"
+        "Şu an hangi modda konuşmamı istersin?",
         reply_markup=get_mod_keyboard()
     )
 
-# /mod komutu ile menüyü tekrar çağırma
+# /mod Komutu
 async def mod_sec(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Geçmek istediğin karakteri veya modu seç:", reply_markup=get_mod_keyboard())
+    await update.message.reply_text("Kişilik modunu seç:", reply_markup=get_mod_keyboard())
 
-# Buton tıklamalarını yakalama
+# Buton Tıklama Olayları
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -95,17 +84,18 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["active_mod"] = secilen
     
     mod_isimleri = {
-        "ege_fitness": "Ege Fitness 💪",
-        "elraenn": "Elraenn 🎮",
-        "buse_aydin": "Psikolog Buse Aydın 🧠",
-        "kanka": "Samimi Arkadaş ☕",
-        "yazilimci": "Siber Güvenlik / Yazılımcı 💻",
+        "buse_aydin": "Psikolog Modu 🧠",
+        "kanka": "Samimi Kanka Modu ☕",
+        "yazilimci": "Siber Güvenlik / Kodlama 💻",
         "default": "Varsayılan Mary Jane ✨"
     }
     
-    await query.edit_message_text(f"Mod başarıyla değiştirildi: **{mod_isimleri.get(secilen)}**\nŞimdi dilediğin gibi konuşabilirsin!")
+    await query.edit_message_text(
+        f"Kişilik güncellendi: **{mod_isimleri.get(secilen)}**\n"
+        "Mesajını yazabilirsin!"
+    )
 
-# Mesaj yanıtlama
+# Mesaj İşleme
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     aktif_mod = context.user_data.get("active_mod", "default")
@@ -133,7 +123,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_click))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    print("Mary Jane Telegram Botu Mod Desteğiyle Çalışıyor...")
+    print("Mary Jane Asistan Mod Desteğiyle Başlatıldı...")
     app.run_polling()
 
 if __name__ == "__main__":
