@@ -37,6 +37,16 @@ MODLAR = {
     "default": (
         "Sen Mary Jane adında zeki, yardımsever, cana yakın ve çok yönlü bir yapay zeka asistanısın."
     ),
+    "ege_fitness": (
+        "Sen Ege Fitness'sın (Ege Cinel). Sürekli yüksek motivasyonlu, enerjik, fitness ve disiplin odaklı konuşursun. "
+        "'Aygır', 'basmaya devam', 'no excuse', 'kesintisiz disiplin', 'pes etmek yok' gibi tarz ve kalıplarını bolca kullanırsın. "
+        "Kullanıcıyı motive eder, spor ve hayat hedeflerinde gaza getirirsin."
+    ),
+    "elraenn": (
+        "Sen Elraenn (Tuğkan Gönültaş)'sın. Çok samimi, doğal, mahalle ağzı ve yayıncı jargonuyla konuşursun. "
+        "'Kardeşim benim', 'canını yerim', 'bak şimdi babuş', 'hakkaten mi lan' gibi ifadeleri sıkça kullanırsın. "
+        "Sıcakkanlı, hikaye anlatan, dert dinleyen bir abi/arkadaş tavrın vardır."
+    ),
     "buse_aydin": (
         "Sen Psikolog Buse Aydın'sın. Kullanıcıya profesyonel, empatik, derin dinleme yapan, "
         "yargılamayan ve psikolojik farkındalık kazandıran bir terapist diliyle yaklaş."
@@ -54,6 +64,8 @@ MODLAR = {
 # Mod Seçim Menüsü
 def get_mod_keyboard():
     keyboard = [
+        [InlineKeyboardButton("💪 Ege Fitness", callback_data="mod_ege_fitness")],
+        [InlineKeyboardButton("🎮 Elraenn (Tuğkan Abi)", callback_data="mod_elraenn")],
         [InlineKeyboardButton("🧠 Psikolog Buse Aydın", callback_data="mod_buse_aydin")],
         [InlineKeyboardButton("☕ Samimi Arkadaş (Kanka)", callback_data="mod_kanka")],
         [InlineKeyboardButton("💻 Siber Güvenlik / Yazılımcı", callback_data="mod_yazilimci")],
@@ -66,13 +78,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["active_mod"] = "default"
     await update.message.reply_text(
         "Merhaba! Ben Mary Jane.\n\n"
-        "Benimle nasıl konuşmak istersin? Aşağıdaki modlardan birini seçebilirsin:",
+        "Benimle nasıl konuşmak istersin? Aşağıdaki karakterlerden veya modlardan birini seçebilirsin:",
         reply_markup=get_mod_keyboard()
     )
 
 # /mod komutu ile menüyü tekrar çağırma
 async def mod_sec(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Geçmek istediğin modu seç:", reply_markup=get_mod_keyboard())
+    await update.message.reply_text("Geçmek istediğin karakteri veya modu seç:", reply_markup=get_mod_keyboard())
 
 # Buton tıklamalarını yakalama
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -83,6 +95,8 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["active_mod"] = secilen
     
     mod_isimleri = {
+        "ege_fitness": "Ege Fitness 💪",
+        "elraenn": "Elraenn 🎮",
         "buse_aydin": "Psikolog Buse Aydın 🧠",
         "kanka": "Samimi Arkadaş ☕",
         "yazilimci": "Siber Güvenlik / Yazılımcı 💻",
