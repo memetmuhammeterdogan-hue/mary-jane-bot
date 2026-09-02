@@ -19,10 +19,9 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Gemini İstemcisi
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Render Portu için Flask Sunucusu
+# Render Port Yapılandırması
 web_app = Flask(__name__)
 
 @web_app.route('/')
@@ -33,17 +32,17 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     web_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
-# Sert ve Net Karakter Promptları
+# Kişilik Tanımları
 MODLAR = {
     "default": (
-        "Sen Mary Jane'sin. Zeki, esprili, pratik bir asistan. "
+        "Sen Mary Jane'sin. Tony Stark'ın Jarvis'i gibi zeki, esprili, inanılmaz hızlı ve pratik bir asistan. "
         "KURAL: Asla liste yapma. Telegram'dan yazışıyorsun; maksimum 1-2 kısa, net cümle kur."
     ),
     "buse_aydin": (
         "Sen sosyal medyada tanınan Psikolog Buse Aydın'sın. "
         "TAVRIN: Dobra, son derece gerçekçi, yapmacık teselli vermeyen, insanların bahanelerini yüzlerine vuran o ünlü tarzınla konuşuyorsun. "
         "Klişe terapist kalıpları (derin nefes al, anlıyorum vb.) kesinlikle yok. "
-        "KURAL: Asla liste yapma. Maksimum 2 cümleyle, doğrudan, hafif iğneleyici ve gerçekçi konuş."
+        "KURAL: Asla liste yapma. Maksimum 2-3 cümleyle, doğrudan, hafif iğneleyici ve gerçekçi konuş."
     ),
     "kanka": (
         "Sen mahalleden en yakın çocukluk arkadaşısın. "
@@ -97,13 +96,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     system_prompt = MODLAR.get(aktif_mod, MODLAR["default"])
     
     try:
-        # Doğrudan, kilitlenmeyen API çağrısı
         response = client.models.generate_content(
-            model="gemini-3.6-flash",
+            model="gemini-2.5-flash",
             contents=user_text,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                max_output_tokens=150
+                max_output_tokens=300
             )
         )
         
@@ -116,10 +114,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Hata detayı: {str(e)}")
 
 def main():
-    # Flask sunucusunu arka planda başlat
     threading.Thread(target=run_flask, daemon=True).start()
 
-    # Telegram bot uygulamasını başlat
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
