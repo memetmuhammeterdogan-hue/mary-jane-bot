@@ -1,4 +1,5 @@
 import os
+import time
 import threading
 from dotenv import load_dotenv
 from flask import Flask
@@ -32,11 +33,11 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     web_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
-# Kişilik Tanımları
+# Sert ve Net Karakter Promptları
 MODLAR = {
     "default": (
-        "Sen Mary Jane'sin. Tony Stark'ın Jarvis'i gibi zeki, esprili, inanılmaz hızlı ve pratik bir asistan. "
-        "KURAL: Asla liste yapma. Telegram'dan yazışıyorsun; maksimum 1-2 kısa, net cümle kur."
+        "Sen Mary Jane'sin. Tony Stark'ın Jarvis'i gibi zeki, esprili, pratik bir yapay zeka asistanı. "
+        "KURAL: Yapay zeka gibi uzun paragraflar ya da maddeli listeler yapma. En fazla 1-2 kısa, net cümle kur."
     ),
     "buse_aydin": (
         "Sen sosyal medyada tanınan Psikolog Buse Aydın'sın. "
@@ -85,7 +86,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mod_mesajlari = {
         "buse_aydin": "Buse Aydın burada. Anlat bakalım, yine neyi dert edip bahanelere sığınıyorsun?",
         "kanka": "Geldim kardo, anlat ne oldu.",
-        "yazilimci": "Terminal açıldı. Sorun ne?",
+        "yazilimci": "Terminal açıldı. Dinliyorum, sorun ne?",
         "default": "Mary Jane hazır. Ne yapıyoruz?"
     }
     await query.edit_message_text(mod_mesajlari.get(secilen, "Mod hazır."))
@@ -95,23 +96,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     aktif_mod = context.user_data.get("active_mod", "default")
     system_prompt = MODLAR.get(aktif_mod, MODLAR["default"])
     
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=user_text,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                max_output_tokens=300
+    # 503 geçici sunucu yoğunluğu yaşanırsa 2 kez tekrar dene
+    son_hata = None
+    for deneme in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=user_text,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    max_output_tokens=400
+                )
             )
-        )
-        
-        if response and response.text:
-            await update.message.reply_text(response.text.strip())
-        else:
-            await update.message.reply_text("Cevap boş geldi, bir daha yaz.")
             
-    except Exception as e:
-        await update.message.reply_text(f"Hata detayı: {str(e)}")
+            if response and response.text:
+                await update.message.reply_text(response.text.strip())
+                return
+        except Exception as e:
+            son_hata = e
+            time.sleep(1)
+            
+    await update.message.reply_text(f"Hata detayı: {str(son_hata)}")
 
 def main():
     threading.Thread(target=run_flask, daemon=True).start()
