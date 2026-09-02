@@ -17,12 +17,13 @@ from google.genai import types
 
 load_dotenv()
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+# Yeni Telegram Token'ı ve Gemini API Anahtarı
+TELEGRAM_TOKEN = "8920384961:AAGzv_ZW3FmZ2HEGn8hf9Y3k7HDOi7Jqnuw"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Render Port Yapılandırması
+# Render Portu için Flask Sunucusu
 web_app = Flask(__name__)
 
 @web_app.route('/')
@@ -33,11 +34,11 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     web_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
-# Sert ve Net Karakter Promptları
+# Kişilik Tanımları
 MODLAR = {
     "default": (
-        "Sen Mary Jane'sin. Tony Stark'ın Jarvis'i gibi zeki, esprili, pratik bir yapay zeka asistanı. "
-        "KURAL: Yapay zeka gibi uzun paragraflar ya da maddeli listeler yapma. En fazla 1-2 kısa, net cümle kur."
+        "Sen Mary Jane'sin. Tony Stark'ın Jarvis'i gibi zeki, esprili, inanılmaz hızlı ve pratik bir asistan. "
+        "KURAL: Asla liste yapma. Telegram'dan yazışıyorsun; maksimum 1-2 kısa, net cümle kur."
     ),
     "buse_aydin": (
         "Sen sosyal medyada tanınan Psikolog Buse Aydın'sın. "
@@ -86,7 +87,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mod_mesajlari = {
         "buse_aydin": "Buse Aydın burada. Anlat bakalım, yine neyi dert edip bahanelere sığınıyorsun?",
         "kanka": "Geldim kardo, anlat ne oldu.",
-        "yazilimci": "Terminal açıldı. Dinliyorum, sorun ne?",
+        "yazilimci": "Terminal açıldı. Sorun ne?",
         "default": "Mary Jane hazır. Ne yapıyoruz?"
     }
     await query.edit_message_text(mod_mesajlari.get(secilen, "Mod hazır."))
@@ -96,9 +97,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     aktif_mod = context.user_data.get("active_mod", "default")
     system_prompt = MODLAR.get(aktif_mod, MODLAR["default"])
     
-    # 503 geçici sunucu yoğunluğu yaşanırsa 2 kez tekrar dene
     son_hata = None
-    for deneme in range(3):
+    for _ in range(3):
         try:
             response = client.models.generate_content(
                 model="gemini-3.6-flash",
