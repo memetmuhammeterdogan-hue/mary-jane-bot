@@ -1,4 +1,5 @@
 import os
+import asyncio
 import threading
 from dotenv import load_dotenv
 from flask import Flask
@@ -21,38 +22,25 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Render Port Yapılandırması
+# Render Portu için Basit Web Sunucusu
 web_app = Flask(__name__)
 
 @web_app.route('/')
 def home():
-    return "Mary Jane Asistan Aktif!"
+    return "Mary Jane Aktif!"
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
-    web_app.run(host="0.0.0.0", port=port)
+    web_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
 # Kişilik Tanımları
 MODLAR = {
-    "default": (
-        "Sen Mary Jane adında zeki, yardımsever, cana yakın ve proaktif bir kişisel yapay zeka asistanısın. "
-        "Kullanıcıya ismiyle hitap edebilirsin."
-    ),
-    "buse_aydin": (
-        "Sen Psikolog Buse Aydın'sın. Kullanıcıya profesyonel, empatik, derin dinleme yapan, "
-        "yargılamayan ve psikolojik farkındalık kazandıran sakin bir terapist diliyle yaklaş."
-    ),
-    "kanka": (
-        "Sen kullanıcının en yakın çocukluk arkadaşısın (kanka modu). Çok samimi, esprili, "
-        "doğal, kafa dağıtan ve dert dinleyen bir üslupla konuş."
-    ),
-    "yazilimci": (
-        "Sen kıdemli bir siber güvenlik uzmanı ve yazılım mimarısın. Kodları doğrudan, temiz, "
-        "açıklayıcı ve teknik derinlikle açıkla."
-    )
+    "default": "Sen Mary Jane adında zeki, samimi ve pratik bir yapay zeka asistanısın.",
+    "buse_aydin": "Sen Psikolog Buse Aydın'sın. Empatik, dinleyen ve farkındalık kazandıran sakin bir terapist üslubuyla konuş.",
+    "kanka": "Sen kullanıcının en yakın arkadaşısın (kanka modu). Çok samimi, doğal, esprili ve dert dinleyen bir dille konuş.",
+    "yazilimci": "Sen kıdemli bir siber güvenlik ve yazılım uzmanısın. Net, teknik ve temiz çözümler sun."
 }
 
-# Mod Menüsü Butonları
 def get_mod_keyboard():
     keyboard = [
         [InlineKeyboardButton("🧠 Psikolog Modu", callback_data="mod_buse_aydin")],
@@ -62,20 +50,17 @@ def get_mod_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# /start Komutu
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["active_mod"] = "default"
     await update.message.reply_text(
-        "Selam Muhammet! Ben Mary Jane, senin kişisel asistanın.\n\n"
-        "Şu an hangi modda konuşmamı istersin?",
+        "Selam! Ben Mary Jane, senin kişisel asistanınım.\n\n"
+        "Aşağıdan bir mod seçebilir veya doğrudan yazmaya başlayabilirsin:",
         reply_markup=get_mod_keyboard()
     )
 
-# /mod Komutu
 async def mod_sec(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Kişilik modunu seç:", reply_markup=get_mod_keyboard())
+    await update.message.reply_text("Bir kişilik seç:", reply_markup=get_mod_keyboard())
 
-# Buton Tıklama Olayları
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -90,28 +75,36 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "default": "Varsayılan Mary Jane ✨"
     }
     
-    await query.edit_message_text(
-        f"Kişilik güncellendi: **{mod_isimleri.get(secilen)}**\n"
-        "Mesajını yazabilirsin!"
-    )
+    await query.edit_message_text(f"Kişilik ayarlandı: {mod_isimleri.get(secilen, 'Varsayılan')}\nŞimdi mesajını yazabilirsin.")
 
-# Mesaj İşleme
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     aktif_mod = context.user_data.get("active_mod", "default")
     system_prompt = MODLAR.get(aktif_mod, MODLAR["default"])
     
+    # Kullanıcıya yazıyor bildirimi gönder
+    await update.message.chat.send_action(action="typing")
+    
     try:
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=user_text,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt
+        # Gemini çağrısını event loop'u tıkamayacak şekilde asenkron çalıştır
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=user_text,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt
+                )
             )
         )
-        await update.message.reply_text(response.text)
+        if response and response.text:
+            await update.message.reply_text(response.text)
+        else:
+            await update.message.reply_text("Yanıt oluşturulamadı, lütfen tekrar dene.")
     except Exception as e:
-        await update.message.reply_text(f"Bir hata oluştu: {e}")
+        print(f"Hata detayı: {e}")
+        await update.message.reply_text(f"Bir sorun oluştu: {e}")
 
 def main():
     threading.Thread(target=run_flask, daemon=True).start()
@@ -123,8 +116,8 @@ def main():
     app.add_handler(CallbackQueryHandler(button_click))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    print("Mary Jane Asistan Mod Desteğiyle Başlatıldı...")
-    app.run_polling()
+    print("Bot hazır ve dinliyor...")
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
