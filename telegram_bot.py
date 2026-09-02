@@ -1,5 +1,4 @@
 import os
-import asyncio
 import threading
 from dotenv import load_dotenv
 from flask import Flask
@@ -20,32 +19,35 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+# Gemini İstemcisi
 client = genai.Client(api_key=GEMINI_API_KEY)
 
+# Render Portu için Flask Sunucusu
 web_app = Flask(__name__)
 
 @web_app.route('/')
 def home():
-    return "Mary Jane Aktif!"
+    return "Mary Jane 7/24 Aktif!"
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
     web_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
+# Sert ve Net Karakter Promptları
 MODLAR = {
     "default": (
         "Sen Mary Jane'sin. Zeki, esprili, pratik bir asistan. "
-        "KURAL: Yapay zeka gibi liste yapma. Telegram'dan yazışıyorsun; en fazla 1-2 kısa, net cümle kur."
+        "KURAL: Asla liste yapma. Telegram'dan yazışıyorsun; maksimum 1-2 kısa, net cümle kur."
     ),
     "buse_aydin": (
         "Sen sosyal medyada tanınan Psikolog Buse Aydın'sın. "
         "TAVRIN: Dobra, son derece gerçekçi, yapmacık teselli vermeyen, insanların bahanelerini yüzlerine vuran o ünlü tarzınla konuşuyorsun. "
         "Klişe terapist kalıpları (derin nefes al, anlıyorum vb.) kesinlikle yok. "
-        "KURAL: Asla liste yapma. Maksimum 2 cümleyle, doğrudan ve Telegram mesajı gibi konuş."
+        "KURAL: Asla liste yapma. Maksimum 2 cümleyle, doğrudan, hafif iğneleyici ve gerçekçi konuş."
     ),
     "kanka": (
         "Sen mahalleden en yakın çocukluk arkadaşısın. "
-        "TAVRIN: Çok rahat, esprili, argo olmayan ama tam kanka ağzıyla konuşan bir dostsun. "
+        "TAVRIN: Çok rahat, esprili, tam kanka ağzıyla konuşan bir dostsun. "
         "KURAL: Resmiyet yok, 1-2 cümleyle WhatsApp mesajı gibi yaz."
     ),
     "yazilimci": (
@@ -67,8 +69,7 @@ def get_mod_keyboard():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["active_mod"] = "default"
     await update.message.reply_text(
-        "Selam Muhammet! Mary Jane devrede.\n\n"
-        "Hangi modda takılalım?",
+        "Selam Muhammet! Mary Jane devrede.\n\nHangi modda takılalım?",
         reply_markup=get_mod_keyboard()
     )
 
@@ -85,10 +86,9 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mod_mesajlari = {
         "buse_aydin": "Buse Aydın burada. Anlat bakalım, yine neyi dert edip bahanelere sığınıyorsun?",
         "kanka": "Geldim kardo, anlat ne oldu.",
-        "yazilimci": "Terminal açıldı. Dinliyorum, sorun ne?",
+        "yazilimci": "Terminal açıldı. Sorun ne?",
         "default": "Mary Jane hazır. Ne yapıyoruz?"
     }
-    
     await query.edit_message_text(mod_mesajlari.get(secilen, "Mod hazır."))
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -96,32 +96,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     aktif_mod = context.user_data.get("active_mod", "default")
     system_prompt = MODLAR.get(aktif_mod, MODLAR["default"])
     
-    await update.message.chat.send_action(action="typing")
-    
     try:
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(
-            None,
-            lambda: client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=user_text,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    max_output_tokens=150
-                )
+        # Doğrudan, kilitlenmeyen API çağrısı
+        response = client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=user_text,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                max_output_tokens=150
             )
         )
+        
         if response and response.text:
             await update.message.reply_text(response.text.strip())
         else:
-            await update.message.reply_text("Cevap oluşturulamadı, tekrar dene.")
+            await update.message.reply_text("Cevap boş geldi, bir daha yaz.")
+            
     except Exception as e:
-        print(f"Hata detayı: {e}")
-        await update.message.reply_text(f"Hata detayı: {e}")
+        await update.message.reply_text(f"Hata detayı: {str(e)}")
 
 def main():
+    # Flask sunucusunu arka planda başlat
     threading.Thread(target=run_flask, daemon=True).start()
 
+    # Telegram bot uygulamasını başlat
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
@@ -129,7 +127,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_click))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    print("Bot yayında...")
+    print("Bot dinlemede...")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
